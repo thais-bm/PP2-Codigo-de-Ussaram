@@ -364,16 +364,9 @@ void ExecutorAzuri(List<string> codeList) {
       }
       nav.next();
     }
-    
-    // Only pop if we've finished executing (not if we're breaking for a function call)
-    if (!isIantecoFunctionCall(line)) {
-      cout << "Fim da funcao: " << currentFunction << endl;
-      functionStack.pop(); // Desempilha a funcao atual
-    }
-  }
-  
-  cout << endl;
-  cout << "Print Fila" << endl;
+}
+  // Imprime o resultado
+  std::cout << "Resultado: ";
   while (!msg.empty()) {
     cout << msg.front() << "";
     msg.dequeue();

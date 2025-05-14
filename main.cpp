@@ -269,7 +269,7 @@ template <typename T> bool Stack<T>::empty() { return list.empty(); }
 //// Funcoes Relacionadas a Atividade comecam aqui ////
 // Funcao responsavel por remover os espacos em branco do inicio e do fim de uma
 // string
-string trim(string str) {
+string trim(const string &str) {
   int start = 0;
   int end = str.length() - 1;
 
@@ -283,20 +283,20 @@ string trim(string str) {
 }
 
 // Funcao responsavel por detectar funcao principal (Z)
-bool isMainFunction(string line) { return (line == "Z :"); }
+bool isMainFunction(const string& line) { return (line == "Z :"); }
 
 // Funcao responsavel por detectar funcao Ianteco
-bool isIantecoFunction(string line) {
+bool isIantecoFunction(const string& line) {
   return (line.find(" :") != string::npos);
 }
 
-bool isIantecoFunctionCall(string line) {
+bool isIantecoFunctionCall(const string &line) {
   return line.size() == 1 && isupper(line[0]);
 }
 
 // Funcao responsavel por detectar o fim de uma funcao
-bool isEndFunction(string line) {
-    return (line.empty());
+bool isEndFunction(const string& line) {
+    return (line.find("FIM DE FUNCAO") != string::npos);
 }
 
 
@@ -324,52 +324,62 @@ void ExecutorAzuri(List<string> codeList) {
     nav.next();
   }
 
-  
+
   // Executa as funcoes que estao na pilha
-  // Ta bugada ainda
-  string currentFunction = functionStack.top();
   while (!functionStack.empty()) {
-    currentFunction = functionStack.top(); // Pega a funcao atual (topo da pilha)
+    string currentFunction = functionStack.top();// Pega a funcao atual (topo da pilha)
     nav.reset(); // Volta para o inicio do codigo
+    cout << "Funcao atual: " << currentFunction << endl;
 
     // Procura a funcao atual
     while (!nav.end()) {
       nav.getCurrentItem(line);
       line = trim(line);
-      if (isIantecoFunction(line) && line == currentFunction) {
-          line.pop_back(); // Remove o ':'
-          line = trim(line); // Remover espaco em branco
+      if (isIantecoFunction(line)) {
+        line.pop_back(); // Remove o ':'
+        line = trim(line); // Remover espaco em branco
+        if ( line == currentFunction) {
           cout << "Funcao: " << line << endl;
           break;
+        }
       }
-      
+
       nav.next(); // Pular para prox linha
     }
 
-    // Executa os comandos da funcao atual
+    // Executa os comandos da funcao atual ou empilha a proxima,
+    // ACHEI O ERRO
+    // ta, quando ele comeca a desempilhar, ele ta executando a funcao anterior DO INICIO, ao inves de onde parou
+    // Como arruma? Vou pensar depois
     while (!nav.end()) {
       nav.getCurrentItem(line);
       line = trim(line);
 
+      // Aqui pode ser o culpado do loop
       if (isEndFunction(line)){
         functionStack.pop(); // Desempilha a funcao atual
         break;
       }
 
-      if (line.find("DESENFILEIRA") != string::npos) {
-        cout << "Desenfileirando" << endl;
-        msg.dequeue();
-      } else if (line.find("ENFILEIRA") != string::npos) {
-        cout << "Enfileirando: " << line.substr(10) << endl;
-        msg.enqueue(line.substr(10)); // Remove o "ENFILEIRA "
-      } else if (isIantecoFunctionCall(line)) {
+      if (isIantecoFunctionCall(line)) {
+        cout << "Funcao: " << line << "empilhada" << endl;
         functionStack.push(line);
-        nav.next(); // Move to next line before processing new function
+        currentFunction = functionStack.top();
         break;
       }
+      else if (line.find("DESENFILEIRA") != string::npos) {
+        cout << "Desenfileirando" << endl;
+        msg.dequeue();
+      }
+      else if (line.find("ENFILEIRA") != string::npos) {
+        cout << "Enfileirando: " << line.substr(10) << endl;
+        msg.enqueue(line.substr(10)); // Remove o "ENFILEIRA "
+      }
+
       nav.next();
     }
-}
+
+  }
 
   // Imprime o resultado
   std::cout << "Resultado: ";
@@ -385,18 +395,26 @@ int main() {
   string line;
 
   while (getline(cin, line) && line != "~") {
-    codeList.insertBack(line);
+    if (line.find_first_not_of(" \t\r\n") == std::string::npos || line.empty() || line.empty()) {
+      codeList.insertBack("FIM DE FUNCAO");
+    }
+    else {
+      codeList.insertBack(line);
+    }
+
   }
+
+  // Problemas do codigo:
+
+  // while (!codeList.empty()) {
+  //   cout << codeList.getItemFront() << endl;
+  //   codeList.removeFront();
+  // }
 
   ExecutorAzuri(codeList);
 
-  // Execucao do Codigo Azuri
-  // 1. Detectar a funcao principal (Z :) e lidar com os comandos
-  // 3. Existem 3 comandos: ENFILERAR, DESENFILERAR e chamar uma funcao
-  // 4. ENFILERAR: Enfileira o comando na fila MENSAGEM
-  // 5. DESENFILERAR: Remove o comando da fila MENSAGEM
-  // 6. Chamar uma funcao: Empilha os comandos da funcao numa pilha FUNCAOSTACK
-  // 9. Imprimir o resultado
+  return 0;
+
   /*
           /| _ ╱|、
          ( •̀ㅅ •́  )
@@ -413,8 +431,6 @@ int main() {
         | /    \ |
 
   */
-
-  return 0;
 }
 
 /*
@@ -444,6 +460,7 @@ ENFILEIRA Q
 B
 ENFILEIRA E
 DESENFILEIRA
+
 ~
 
 OUTPUT: ATAQUE

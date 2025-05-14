@@ -295,7 +295,9 @@ bool isIantecoFunctionCall(string line) {
 }
 
 // Funcao responsavel por detectar o fim de uma funcao
-bool isEndFunction(string line) { return (line.empty()); }
+bool isEndFunction(string line) {
+    return (line.empty());
+}
 
 
 // Funcao responsavel por executar o codigo Azuri
@@ -322,8 +324,10 @@ void ExecutorAzuri(List<string> codeList) {
     nav.next();
   }
 
+  
+  // Executa as funcoes que estao na pilha
+  // Ta bugada ainda
   string currentFunction = functionStack.top();
-  // Executa as funcoes
   while (!functionStack.empty()) {
     currentFunction = functionStack.top(); // Pega a funcao atual (topo da pilha)
     nav.reset(); // Volta para o inicio do codigo
@@ -332,15 +336,14 @@ void ExecutorAzuri(List<string> codeList) {
     while (!nav.end()) {
       nav.getCurrentItem(line);
       line = trim(line);
-      if (isIantecoFunction(line)) {
-        line.pop_back(); // Remove o ':'
-        line = trim(line);
-        if (line == currentFunction) {
+      if (isIantecoFunction(line) && line == currentFunction) {
+          line.pop_back(); // Remove o ':'
+          line = trim(line); // Remover espaco em branco
           cout << "Funcao: " << line << endl;
           break;
-        }
       }
-      nav.next();
+      
+      nav.next(); // Pular para prox linha
     }
 
     // Executa os comandos da funcao atual
@@ -348,8 +351,10 @@ void ExecutorAzuri(List<string> codeList) {
       nav.getCurrentItem(line);
       line = trim(line);
 
-      if (isEndFunction(line))
+      if (isEndFunction(line)){
+        functionStack.pop(); // Desempilha a funcao atual
         break;
+      }
 
       if (line.find("DESENFILEIRA") != string::npos) {
         cout << "Desenfileirando" << endl;
@@ -365,12 +370,14 @@ void ExecutorAzuri(List<string> codeList) {
       nav.next();
     }
 }
+
   // Imprime o resultado
   std::cout << "Resultado: ";
   while (!msg.empty()) {
-    cout << msg.front() << "";
+    cout << msg.front() << " ";
     msg.dequeue();
   }
+  cout << endl;
 }
 
 int main() {

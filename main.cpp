@@ -347,6 +347,7 @@ void ExecutorAzuri(List<string> codeList) {
   // Passo 2: Executar as funções empilhadas
   while (!functionStack.empty()) {
     FunctionContext currentFunction = functionStack.top(); // Pega o contexto da funcao atual
+    functionStack.pop(); // Remove a função atual da pilha
     
     nav.seekToPosition(currentFunction.position); // Navega para a posicao da funcao
     std::cout << "Executando funcao: " << currentFunction.functionName << endl; // DEBUG
@@ -357,7 +358,6 @@ void ExecutorAzuri(List<string> codeList) {
 
       // Fim da função
       if (isEndFunction(line)) {
-        functionStack.pop(); // Remove a função atual da pilha
 
         if (currentFunction.returnPosition != -1) {
           ListNavigator<string> search = codeList.getListNavigator();

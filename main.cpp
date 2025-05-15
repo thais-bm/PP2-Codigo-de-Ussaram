@@ -153,27 +153,35 @@ private:
   int currentPosition;
 
 public:
+  ListNavigator(Node<T> *current);
   bool end();
   void next();
   void reset();
   bool getCurrentItem(T &item);
   int getCurrentPosition() const;
   void seekToPosition(int pos);
-  ListNavigator(Node<T> *current);
 };
 
-template <typename T> ListNavigator<T>::ListNavigator(Node<T> *current) {
+template <typename T> ListNavigator<T>::ListNavigator(Node<T> *current){
   this->current = current;
   this->start = current;
+  this->currentPosition = 0;
 }
 
 template <typename T> bool ListNavigator<T>::end() {
   return current == nullptr;
+
 }
 
-template <typename T> void ListNavigator<T>::next() { current = current->next; }
+template <typename T> void ListNavigator<T>::next() {
+  current = current->next;
+  currentPosition++;
+}
 
-template <typename T> void ListNavigator<T>::reset() { current = start; }
+template <typename T> void ListNavigator<T>::reset() {
+  current = start;
+  currentPosition = 0;
+}
 
 template <typename T> bool ListNavigator<T>::getCurrentItem(T &item) {
   if (current == nullptr) {
@@ -299,96 +307,128 @@ bool isEndFunction(const string& line) {
     return (line.find("FIM DE FUNCAO") != string::npos);
 }
 
-
 // Funcao responsavel por executar o codigo Azuri
-// Ta bugada e nao sei como consertar
+
+struct FunctionContext {
+  string functionName;
+  int position;
+  int returnPosition; // Onde retornar após chamada de função
+};
 
 void ExecutorAzuri(List<string> codeList) {
   ListNavigator<string> nav = codeList.getListNavigator();
   Queue<string> msg(List<string>{});
-  Stack<string> functionStack(List<string>{});
+  Stack<FunctionContext> functionStack(List<FunctionContext>{});
 
-  // Procura a funcao principal (Z :)
-  cout << "Executando funcao principal..." << endl;
+  FunctionContext Zmain; //Mantendo a funcao main
+
   string line;
+
+  // Passo 1: Encontrar a funcao principal (Z :)
   while (!nav.end()) {
     nav.getCurrentItem(line);
     line = trim(line);
+
     if (isMainFunction(line)) {
-      line.pop_back(); // Remove o ':'
-      line = trim(line); // Remove espacos em branco
-      functionStack.push(line); // Empilha a funcao principal
+      line.pop_back(); // Remove ':'
+      line = trim(line);
+
+      Zmain.functionName = line;
+      Zmain.position = nav.getCurrentPosition() + 1; // posicao relacionada ao codeList
+      Zmain.returnPosition = -1; // Nada a retornar
+      functionStack.push(Zmain);
+
       cout << "Funcao principal encontrada: " << line << endl;
       break;
     }
+
     nav.next();
   }
 
-
-  // Executa as funcoes que estao na pilha
+  // Passo 2: Executar as funções empilhadas
   while (!functionStack.empty()) {
-    string currentFunction = functionStack.top();// Pega a funcao atual (topo da pilha)
-    nav.reset(); // Volta para o inicio do codigo
-    cout << "Funcao atual: " << currentFunction << endl;
+    FunctionContext currentFunction = functionStack.top();
+    functionStack.pop();
 
-    // Procura a funcao atual
+    nav.seekToPosition(currentFunction.position);
+    cout << "Executando funcao: " << currentFunction.functionName << endl;
+
     while (!nav.end()) {
       nav.getCurrentItem(line);
       line = trim(line);
-      if (isIantecoFunction(line)) {
-        line.pop_back(); // Remove o ':'
-        line = trim(line); // Remover espaco em branco
-        if ( line == currentFunction) {
-          cout << "Funcao: " << line << endl;
-          break;
+
+      // Fim da função
+      if (isEndFunction(line)) {
+        if (currentFunction.returnPosition != -1) {
+          FunctionContext retorno;
+          retorno.functionName = currentFunction.functionName;
+          retorno.position = currentFunction.returnPosition;
+          retorno.returnPosition = -1;
+          functionStack.push(retorno);
+          cout << "Fim de Funcao" << endl;
+        }
+        break;
+      }
+
+      // Chamada de outra função
+      if (isIantecoFunctionCall(line)) {
+        FunctionContext newContext;
+        newContext.functionName = trim(line);
+        newContext.returnPosition = nav.getCurrentPosition() + 1;
+
+        // Buscar posição da função chamada
+        ListNavigator<string> search = codeList.getListNavigator();
+        string searchLine;
+        while (!search.end()) {
+          search.getCurrentItem(searchLine);
+          searchLine = trim(searchLine);
+
+          if (isIantecoFunction(searchLine)) {
+            string function = trim(searchLine);
+            function.pop_back(); // remove ':'
+            function = trim(function);
+            if (function == newContext.functionName) {
+              newContext.position = search.getCurrentPosition() + 1;
+              break;
+            }
+          }
+          search.next();
+        }
+
+        functionStack.push(newContext); // Chamada da nova função
+        break; // Pausa execução atual
+      }
+
+      // Comandos da linguagem
+      else if (line.find("DESENFILEIRA") != string::npos) {
+        if (!msg.empty()) {
+          msg.dequeue();
+          cout << "Desenfileirando" << endl;
+        } else {
+          cout << "Fila vazia ao tentar desenfileirar" << endl;
         }
       }
-
-      nav.next(); // Pular para prox linha
-    }
-
-    // Executa os comandos da funcao atual ou empilha a proxima,
-    // ACHEI O ERRO
-    // ta, quando ele comeca a desempilhar, ele ta executando a funcao anterior DO INICIO, ao inves de onde parou
-    // Como arruma? Vou pensar depois
-    while (!nav.end()) {
-      nav.getCurrentItem(line);
-      line = trim(line);
-
-      // Aqui pode ser o culpado do loop
-      if (isEndFunction(line)){
-        functionStack.pop(); // Desempilha a funcao atual
-        break;
-      }
-
-      if (isIantecoFunctionCall(line)) {
-        cout << "Funcao: " << line << "empilhada" << endl;
-        functionStack.push(line);
-        currentFunction = functionStack.top();
-        break;
-      }
-      else if (line.find("DESENFILEIRA") != string::npos) {
-        cout << "Desenfileirando" << endl;
-        msg.dequeue();
-      }
       else if (line.find("ENFILEIRA") != string::npos) {
-        cout << "Enfileirando: " << line.substr(10) << endl;
-        msg.enqueue(line.substr(10)); // Remove o "ENFILEIRA "
+        string content = line.substr(10); // depois de "ENFILEIRA "
+        msg.enqueue(content);
+        cout << "Enfileirando: " << content << endl;
       }
 
       nav.next();
     }
 
+
   }
 
-  // Imprime o resultado
-  std::cout << "Resultado: ";
+  // Imprimir resultado final
+  cout << "Resultado: ";
   while (!msg.empty()) {
     cout << msg.front() << " ";
     msg.dequeue();
   }
   cout << endl;
 }
+
 
 int main() {
   List<string> codeList;

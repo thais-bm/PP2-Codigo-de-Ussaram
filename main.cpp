@@ -274,8 +274,7 @@ template <typename T> int Stack<T>::size() { return list.size(); }
 template <typename T> bool Stack<T>::empty() { return list.empty(); }
 
 //// Funcoes Relacionadas a Atividade comecam aqui ////
-// Funcao responsavel por remover os espacos em branco do inicio e do fim de uma
-// string
+// Funcao responsavel por remover os espacos em branco do inicio e do fim de uma string
 string trim(const string &str) {
   int start = 0;
   int end = str.length() - 1;
@@ -297,6 +296,7 @@ bool isIantecoFunction(const string& line) {
   return (line.find(" :") != string::npos);
 }
 
+// Funcao responsavel por detectar chamada de funcao Ianteco
 bool isIantecoFunctionCall(const string &line) {
   return line.size() == 1 && isupper(line[0]);
 }
@@ -306,8 +306,17 @@ bool isEndFunction(const string& line) {
     return (line.find("FIM DE FUNCAO") != string::npos);
 }
 
-// Funcao responsavel por executar o codigo Azuri
+// Funcao responsavel por imprimir as mensagens
+void printMsg(Queue<string> msg) {
+  std::cout << "Resultado: ";
+  while (!msg.empty()) {
+    std::cout << msg.front() << " ";
+    msg.dequeue();
+  }
+  std::cout << endl;
+}
 
+// Funcao responsavel por executar o codigo Azuri
 // Structura para armazenar o contexto da funcao
 struct FunctionContext {
   string functionName; // Nome da funcao
@@ -321,8 +330,11 @@ void ExecutorAzuri(List<string> codeList) {
   Stack<FunctionContext> functionStack(List<FunctionContext>{}); // Pilha para armazenar o contexto das funcoes
 
   // Inicializa a pilha com a funcao principal
-  FunctionContext Zmain; //Mantendo a funcao main
   string line;
+
+  // Variaveis para controle de fluxo de retorno
+  bool shouldReturn = false;
+  int pendingReturn = -1;
 
   // Passo 1: Encontrar a funcao principal (Z :)
   while (!nav.end()) {
@@ -333,9 +345,10 @@ void ExecutorAzuri(List<string> codeList) {
       line.pop_back(); // Remove ':'
       line = trim(line);
 
+      FunctionContext Zmain;
       Zmain.functionName = line;
-      Zmain.position = nav.getCurrentPosition() + 1; // posicao da funcao no CodeList
-      Zmain.returnPosition = -1; // nao tem retorno
+      Zmain.position = nav.getCurrentPosition() + 1; // posição da função no CodeList
+      Zmain.returnPosition = -1; // não tem retorno
       functionStack.push(Zmain);
 
       std::cout << "Funcao principal encontrada: " << line << endl;
@@ -346,46 +359,44 @@ void ExecutorAzuri(List<string> codeList) {
 
   // Passo 2: Executar as funções empilhadas
   while (!functionStack.empty()) {
-    FunctionContext currentFunction = functionStack.top(); // Pega o contexto da funcao atual
-    functionStack.pop(); // Remove a função atual da pilha
-    
-    nav.seekToPosition(currentFunction.position); // Navega para a posicao da funcao
-    std::cout << "Executando funcao: " << currentFunction.functionName << endl; // DEBUG
+    if (shouldReturn) {
+      nav.seekToPosition(pendingReturn); // Volta para a linha após chamada
+      shouldReturn = false;
+    } else {
+      nav.seekToPosition(functionStack.top().position); // Navega para a posição da função
+    }
+    std::cout << "Executando funcao: " << functionStack.top().functionName << endl;
 
     while (!nav.end()) {
       nav.getCurrentItem(line);
       line = trim(line);
 
+      // Comandos da linguagem
+      if (line.find("DESENFILEIRA") != string::npos) {
+        if (!msg.empty()) {
+          msg.dequeue();
+          std::cout << "Desenfileirando" << endl;
+        }
+      }
+      else if (line.find("ENFILEIRA") != string::npos) {
+        string content = line.substr(10); // depois de "ENFILEIRA "
+        msg.enqueue(content);
+        std::cout << "Enfileirando: " << content << endl;
+      }
+
       // Fim da função
       if (isEndFunction(line)) {
+        if (functionStack.top().returnPosition != -1) {
+          pendingReturn = functionStack.top().returnPosition; // Volta para a linha após chamada
+          shouldReturn = true; // Indica que deve retornar
+          functionStack.pop(); // Remove a função atual da pilha
+          break;
 
-        if (currentFunction.returnPosition != -1) {
-          ListNavigator<string> search = codeList.getListNavigator();
-          string searchLine;
-
-          FunctionContext retorno;
-          int func_pos = currentFunction.returnPosition - 1;
-          search.seekToPosition(func_pos);
-          search.getCurrentItem(searchLine);
-          searchLine = trim(searchLine);
-
-          retorno.functionName = searchLine;
-          retorno.position = currentFunction.returnPosition;
-
-          // Agora olhamos o topo atual da pilha (a função que chamou esta), se existir
-          if (!functionStack.empty()) {
-            retorno.returnPosition = functionStack.top().returnPosition;
-            std::cout << "Retornando para: " << retorno.returnPosition << endl;
-          } else {
-            retorno.returnPosition = -1; // Voltou para o fim da main
-          }
-
-          functionStack.push(retorno);
-          std::cout << "Fim de Funcao: " << currentFunction.functionName << endl;
+        } else {
+          functionStack.pop(); // Remove a funcao
+          break;
         }
-    break;
-  }
-
+      }
 
       // Chamada de outra função
       if (isIantecoFunctionCall(line)) {
@@ -396,10 +407,10 @@ void ExecutorAzuri(List<string> codeList) {
         // Buscar posição da função chamada
         ListNavigator<string> search = codeList.getListNavigator();
         string searchLine;
+
         while (!search.end()) {
           search.getCurrentItem(searchLine);
           searchLine = trim(searchLine);
-
           if (isIantecoFunction(searchLine)) {
             string function = trim(searchLine);
             function.pop_back(); // remove ':'
@@ -412,40 +423,26 @@ void ExecutorAzuri(List<string> codeList) {
           search.next();
         }
 
-        functionStack.push(newContext); // Chamada da nova função
-        break; // Pausa execução atual
-      }
+        std::cout << "Chamando funcao: " << newContext.functionName << endl;
+        std::cout << "Retornando para: " << newContext.returnPosition << endl;
+        std::cout << "Posicao da funcao chamada: " << newContext.position << endl;
 
-      // Comandos da linguagem
-      else if (line.find("DESENFILEIRA") != string::npos) {
-        if (!msg.empty()) {
-          msg.dequeue();
-          std::cout << "Desenfileirando" << endl;
-        } else {
-          std::cout << "Fila vazia ao tentar desenfileirar" << endl;
-        }
-      }
-      else if (line.find("ENFILEIRA") != string::npos) {
-        string content = line.substr(10); // depois de "ENFILEIRA "
-        msg.enqueue(content);
-        std::cout << "Enfileirando: " << content << endl;
+        functionStack.push(newContext); // Empilha a nova função
+        break; // Pausa execução atual para tratar nova função
       }
 
       nav.next();
     }
-
-
   }
 
-  
-  // Imprimir resultado final
-  std::cout << "Resultado: ";
-  while (!msg.empty()) {
-    std::cout << msg.front() << " ";
-    msg.dequeue();
-  }
+  // Passo 3: Imprimir mensagens
+  printMsg(msg);
   std::cout << endl;
+  std::cout << "Fim do programa" << endl;
 }
+
+
+
 
 
 int main() {

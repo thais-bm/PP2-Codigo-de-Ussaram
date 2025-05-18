@@ -441,13 +441,96 @@ void ExecutorAzuri(List<string> codeList) {
   std::cout << "Fim do programa" << endl;
 }
 
+// Implementando Tabela e funcao hash
 
+// Criando a classe dicionario
+
+struct DictEntry {
+    std::string ianteco;
+    std::string azuri;
+    DictEntry* proximo;
+
+    DictEntry(std::string i, std::string a) : ianteco(i), azuri(a), proximo(nullptr) {}
+};
+
+// funcao hash
+
+size_t hash(const std::string& key, size_t m) {
+    size_t valor_hash = 0;
+    size_t base = 1;
+
+    for (int i = static_cast<int>(key.length()) - 1; i >= 0; --i) {
+        valor_hash += key[i] * base;
+        valor_hash %= m;
+        base *= 128;
+        base %= m;
+    }
+
+    return valor_hash;
+}
+
+// Tabela Hash
+
+class HashTable {
+private:
+    DictEntry** tabela;
+    size_t tamanho;
+
+public:
+    HashTable(size_t m) {
+        tamanho = m;
+        tabela = new DictEntry*[tamanho];
+        for (size_t i = 0; i < tamanho; ++i) {
+            tabela[i] = nullptr;
+        }
+    }
+
+    ~HashTable() {
+        for (size_t i = 0; i < tamanho; ++i) {
+            DictEntry* atual = tabela[i];
+            while (atual != nullptr) {
+                DictEntry* temp = atual;
+                atual = atual->proximo;
+                delete temp;
+            }
+        }
+        delete[] tabela;
+    }
+
+    void insert(const std::string& chave, const DictEntry& entrada) {
+        size_t indice = hash(chave, tamanho);
+        DictEntry* novo = new DictEntry(entrada.ianteco, entrada.azuri);
+        novo->proximo = tabela[indice];
+        tabela[indice] = novo;
+    }
+
+    std::string search(const std::string& chave) {
+        size_t indice = hash(chave, tamanho);
+        DictEntry* atual = tabela[indice];
+        while (atual != nullptr) {
+            if (atual->ianteco == chave) return atual->azuri;
+            atual = atual->proximo;
+        }
+        return ""; // nao encontrado
+    }
+};
 
 
 
 int main() {
+  HashTable dict(11);
   List<string> codeList;
   string line;
+
+  DictEntry entradas[] = {
+        {":::", "A"}, {".::", "B"}, {":.:", "C"}, {"::.", "D"},
+        {":..", "E"}, {".:.", "F"}, {"..:", "G"}, {"...", "H"},
+        {"|::", "I"}, {":|:", "J"}, {"::|", "K"}, {"|.:", "L"}, 
+        {".|:", "M"}, {".:|", "N"}, {"|:.", "O"}, {":|.", "P"},
+        {":.|", "Q"}, {"|..", "R"}, {".|.", "S"}, {"..|", "T"},
+        {".||", "U"}, {"|.|", "V"}, {"||.", "W"}, {"-.-", "X"}, 
+        {".--", "Y"}, {"--.", "Z"}, {"---", "branco"}, {"", ""}, 
+    };
 
   while (getline(cin, line) && line != "~") {
     if (line.find_first_not_of(" \t\r\n") == std::string::npos || line.empty() || line.empty()) {

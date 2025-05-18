@@ -446,35 +446,40 @@ void ExecutorAzuri(List<string> codeList) {
 // Criando a classe dicionario
 
 struct DictEntry {
-    std::string ianteco;
-    std::string azuri;
+    string ianteco;
+    string azuri;
     DictEntry* proximo;
 
     DictEntry(std::string i, std::string a) : ianteco(i), azuri(a), proximo(nullptr) {}
 };
 
-// funcao hash
 
-size_t hash(const std::string& key, size_t m) {
+// Tabela Hash
+
+template <typename T> class HashTable {
+private:
+    DictEntry** tabela;
+    size_t tamanho;
+
+    // Funcao Hash //
+    size_t hash(const std::string& key, size_t m) {
     size_t valor_hash = 0;
-    size_t base = 1;
+    size_t n = key.length();
 
-    for (int i = static_cast<int>(key.length()) - 1; i >= 0; --i) {
-        valor_hash += key[i] * base;
+    for (size_t i = 0; i < n; ++i) {
+        size_t potencia = 1;
+
+        for (size_t j = 0; j < n - i - 1; ++j) {
+            potencia *= 128;
+        }
+
+        valor_hash += key[i] * potencia;
         valor_hash %= m;
-        base *= 128;
-        base %= m;
     }
 
     return valor_hash;
 }
 
-// Tabela Hash
-
-class HashTable {
-private:
-    DictEntry** tabela;
-    size_t tamanho;
 
 public:
     HashTable(size_t m) {
@@ -497,7 +502,9 @@ public:
         delete[] tabela;
     }
 
-    void insert(const std::string& chave, const DictEntry& entrada) {
+
+    template<typename T>
+    void HashTable<T>::insert(const std::string& chave, const DictEntry& entrada) {
         size_t indice = hash(chave, tamanho);
         DictEntry* novo = new DictEntry(entrada.ianteco, entrada.azuri);
         novo->proximo = tabela[indice];
@@ -513,6 +520,15 @@ public:
         }
         return ""; // nao encontrado
     }
+
+    bool HashTable::empty() const {
+    for (int i = 0; i < 11; ++i) {
+        if (tabela[i] != nullptr) {
+            return false;
+        }
+    }
+    return true;
+}
 };
 
 
@@ -572,7 +588,7 @@ int main() {
 }
 
 /*
-Codigo de teste
+Codigo de teste traduzido
 
 C :
 ENFILEIRA T

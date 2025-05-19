@@ -532,74 +532,47 @@ public:
 // Tradutor de Ianteco-Azuri
 
 List<string> traduzirIanteco(HashTable<string>& dict, List<string>& iantecoLines) {
-    ListNavigator<string> nav = iantecoLines.getListNavigator();
-    List<string> codigoAzuri;
-    string linha;
+  ListNavigator<string> nav = iantecoLines.getListNavigator();
+  List<string> codigoAzuri;
+  string linha;
+  string nomeFunc;
 
-    while (!nav.end()) {
-        nav.getCurrentItem(linha);
-        linha = trim(linha);
+  while (!nav.end()) {
+    nav.getCurrentItem(linha);
+    linha = trim(linha);
 
-        if (linha.empty() || linha == "~") {
-            codigoAzuri.insertBack("FIM DE FUNCAO");
-            nav.next();
-            continue;
-        }
+    // Ignorar linhas de "FIM DE FUNCAO"
 
-        // Caso 1: Definicao de funcao (ex: :.:---:)
-        if (linha.back() == ':' && linha.find("------") == string::npos) {
-            string nomeFunc = "";
-            for (size_t i = 0; i + 2 < linha.length(); i += 3) {
-                string simbolo = linha.substr(i, 3);
-                string traduzido = dict.search(simbolo);
-                if (!traduzido.empty() && traduzido != " ") {
-                    nomeFunc += traduzido;
-                }
-            }
-            // Remove o ':' final se existir
-            if (!nomeFunc.empty() && nomeFunc.back() == ':') {
-                nomeFunc.pop_back();
-            }
-            codigoAzuri.insertBack(nomeFunc + " :");
-        }
-        // Caso 2: Linha de comando (ex: ------:...:|.:)
-        else if (linha.find("------:") == 0) {
-            string conteudo = linha.substr(7);
-            string parametro = "";
-            
-            for (size_t i = 0; i + 2 < conteudo.length(); i += 3) {
-                string simbolo = conteudo.substr(i, 3);
-                string traduzido = dict.search(simbolo);
-                if (!traduzido.empty() && traduzido != " ") {
-                    parametro += traduzido;
-                }
-            }
-            
-            if (parametro.empty()) {
-                codigoAzuri.insertBack("DESENFILEIRA");
-            } else {
-                codigoAzuri.insertBack("ENFILEIRA " + parametro);
-            }
-        }
-        // Caso 3: Chamada de funcao (ex: :.:)
-        else {
-            string chamada = "";
-            for (size_t i = 0; i + 2 < linha.length(); i += 3) {
-                string simbolo = linha.substr(i, 3);
-                string traduzido = dict.search(simbolo);
-                if (!traduzido.empty() && traduzido != " ") {
-                    chamada += traduzido;
-                }
-            }
-            if (!chamada.empty()) {
-                codigoAzuri.insertBack(chamada);
-            }
-        }
+    nomeFunc.clear(); // Limpar nomeFunc antes de processar uma nova linha
 
-        nav.next();
+    // Processar a linha em grupos de 3 caracteres
+    for (size_t i = 0; i + 2 < linha.length(); i += 3) {
+      string simbolo = linha.substr(i, 3);  // Extrair 3 caracteres
+      string traduzido = dict.search(simbolo);  // Procurar no dicionario
+      // Se encontrado, adicionar ao nome da funcao
+      if (!traduzido.empty()) {
+        nomeFunc += traduzido;
+      }
     }
 
-    return codigoAzuri;
+    // Adicionar o ':'
+    if (nomeFunc.size() == 2) {
+      nomeFunc += ":";
+    }
+
+    if (linha == "FIM DE FUNCAO") {
+      nomeFunc = "FIM DE FUNCAO";  // "FIM DE FUNCAO" -> palavra reservada: nao deve ser traduzida
+    }
+
+    // Adicionar o nome da funcao traduzida ao codigo Azuri
+    if (!nomeFunc.empty()) {
+      codigoAzuri.insertBack(nomeFunc);
+    }
+
+    nav.next();  // proxima linha
+  }
+
+  return codigoAzuri;
 }
 
 int main() {
@@ -614,7 +587,9 @@ int main() {
         {".|:", "M"}, {".:|", "N"}, {"|:.", "O"}, {":|.", "P"},
         {":.|", "Q"}, {"|..", "R"}, {".|.", "S"}, {"..|", "T"},
         {".||", "U"}, {"|.|", "V"}, {"||.", "W"}, {"-.-", "X"}, 
-        {".--", "Y"}, {"--.", "Z"}, {"---", " "}, {"~", "~"}, {" ", " "},
+        {".--", "Y"}, {"--.", "Z"}, {"---", " "}, {"~", "~"}, 
+        {":  ", ":  "}, {" ", " "}, 
+
     };
 
   for (const auto& entrada : entradas) {

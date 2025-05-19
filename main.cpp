@@ -308,13 +308,30 @@ bool isEndFunction(const string& line) {
 
 // Funcao responsavel por imprimir as mensagens
 void printMsg(Queue<string> msg) {
-  std::cout << "Resultado: ";
+  string palavra = "";
+
   while (!msg.empty()) {
-    std::cout << msg.front() << " ";
+    string letra = msg.front();
     msg.dequeue();
+
+    if (trim(letra) != "") {
+      palavra += trim(letra);
+    } else {
+      if (!palavra.empty()) {
+        std::cout << palavra << " ";
+        palavra = "";
+      }
+    }
   }
+
+  if (!palavra.empty()) {
+    std::cout << palavra;
+  }
+
   std::cout << endl;
 }
+
+
 
 // Funcao responsavel por executar o codigo Azuri
 // Structura para armazenar o contexto da funcao
@@ -350,8 +367,6 @@ void ExecutorAzuri(List<string> codeList) {
       Zmain.position = nav.getCurrentPosition() + 1; // posicao da funcao no CodeList
       Zmain.returnPosition = -1; // nao tem retorno
       functionStack.push(Zmain);
-
-      std::cout << "Funcao principal encontrada: " << line << endl;
       break;
     }
     nav.next();
@@ -365,7 +380,6 @@ void ExecutorAzuri(List<string> codeList) {
     } else {
       nav.seekToPosition(functionStack.top().position); // Navega para a posicao da funcao
     }
-    std::cout << "Executando funcao: " << functionStack.top().functionName << endl;
 
     while (!nav.end()) {
       nav.getCurrentItem(line);
@@ -375,13 +389,14 @@ void ExecutorAzuri(List<string> codeList) {
       if (line.find("DESENFILEIRA") != string::npos) {
         if (!msg.empty()) {
           msg.dequeue();
-          std::cout << "Desenfileirando" << endl;
         }
       }
       else if (line.find("ENFILEIRA") != string::npos) {
-        string content = line.substr(10); // depois de "ENFILEIRA "
+        string content = line.substr(9, line.size() - 9); // depois de "ENFILEIRA "
+        if (line.size() == 9) {
+          content = " ";
+        }
         msg.enqueue(content);
-        std::cout << "Enfileirando: " << content << endl;
       }
 
       // Fim da funcao
@@ -423,10 +438,6 @@ void ExecutorAzuri(List<string> codeList) {
           search.next();
         }
 
-        std::cout << "Chamando funcao: " << newContext.functionName << endl;
-        std::cout << "Retornando para: " << newContext.returnPosition << endl;
-        std::cout << "Posicao da funcao chamada: " << newContext.position << endl;
-
         functionStack.push(newContext); // Empilha a nova funcao
         break; // Pausa execucao atual para tratar nova funcao
       }
@@ -438,11 +449,9 @@ void ExecutorAzuri(List<string> codeList) {
   // Passo 3: Imprimir mensagens
   printMsg(msg);
   std::cout << endl;
-  std::cout << "Fim do programa" << endl;
 }
 
 // Implementando Tabela e funcao hash
-
 // Criando a classe dicionario
 
 struct DictEntry {
@@ -516,7 +525,7 @@ public:
             if (atual->ianteco == chave) return atual->azuri;
             atual = atual->proximo;
         }
-        return ""; // nao encontrado
+        return "";
     }
 
     bool empty() const {
@@ -530,77 +539,46 @@ public:
 };
 
 // Tradutor de Ianteco-Azuri
+List<string> traduzirIantecoV2(HashTable<string>& dict, List<string>& iantecoLines) {
+  ListNavigator<string> nav = iantecoLines.getListNavigator();
+  List<string> codigoAzuri;
+  string linha;
+  string nomeFunc;
 
-List<string> traduzirIanteco(HashTable<string>& dict, List<string>& iantecoLines) {
-    ListNavigator<string> nav = iantecoLines.getListNavigator();
-    List<string> codigoAzuri;
-    string linha;
+  while (!nav.end()) {
+    nav.getCurrentItem(linha);
+    linha = trim(linha);
 
-    while (!nav.end()) {
-        nav.getCurrentItem(linha);
-        linha = trim(linha);
+    nomeFunc.clear(); // Limpar nomeFunc antes de processar uma nova linha
 
-        if (linha.empty() || linha == "~") {
-            codigoAzuri.insertBack("FIM DE FUNCAO");
-            nav.next();
-            continue;
-        }
-
-        // Caso 1: Definicao de funcao (ex: :.:---:)
-        if (linha.back() == ':' && linha.find("------") == string::npos) {
-            string nomeFunc = "";
-            for (size_t i = 0; i + 2 < linha.length(); i += 3) {
-                string simbolo = linha.substr(i, 3);
-                string traduzido = dict.search(simbolo);
-                if (!traduzido.empty() && traduzido != " ") {
-                    nomeFunc += traduzido;
-                }
-            }
-            // Remove o ':' final se existir
-            if (!nomeFunc.empty() && nomeFunc.back() == ':') {
-                nomeFunc.pop_back();
-            }
-            codigoAzuri.insertBack(nomeFunc + " :");
-        }
-        // Caso 2: Linha de comando (ex: ------:...:|.:)
-        else if (linha.find("------:") == 0) {
-            string conteudo = linha.substr(7);
-            string parametro = "";
-            
-            for (size_t i = 0; i + 2 < conteudo.length(); i += 3) {
-                string simbolo = conteudo.substr(i, 3);
-                string traduzido = dict.search(simbolo);
-                if (!traduzido.empty() && traduzido != " ") {
-                    parametro += traduzido;
-                }
-            }
-            
-            if (parametro.empty()) {
-                codigoAzuri.insertBack("DESENFILEIRA");
-            } else {
-                codigoAzuri.insertBack("ENFILEIRA " + parametro);
-            }
-        }
-        // Caso 3: Chamada de funcao (ex: :.:)
-        else {
-            string chamada = "";
-            for (size_t i = 0; i + 2 < linha.length(); i += 3) {
-                string simbolo = linha.substr(i, 3);
-                string traduzido = dict.search(simbolo);
-                if (!traduzido.empty() && traduzido != " ") {
-                    chamada += traduzido;
-                }
-            }
-            if (!chamada.empty()) {
-                codigoAzuri.insertBack(chamada);
-            }
-        }
-
-        nav.next();
+    // Processar a linha em grupos de 3 caracteres
+    for (size_t i = 0; i + 2 < linha.length(); i += 3) {
+      string simbolo = linha.substr(i, 3);  // pega 3 caracteres
+      string traduzido = dict.search(simbolo);   // procura no dicionario
+      if (!traduzido.empty()) {
+        nomeFunc += traduzido;
+      }
     }
 
-    return codigoAzuri;
+    // Adicionar o ':'
+    if (nomeFunc.size() == 2) {
+      nomeFunc += ":";
+    }
+
+    if (linha == "FIM DE FUNCAO") {
+      nomeFunc = "FIM DE FUNCAO";  // palavra reservada: nao deve ser traduzida
+    }
+
+    if (!nomeFunc.empty()) {
+      codigoAzuri.insertBack(trim(nomeFunc));
+    }
+
+    nav.next();
+  }
+
+  return codigoAzuri;
 }
+
 
 int main() {
   HashTable<string> dict(11);
@@ -614,7 +592,7 @@ int main() {
         {".|:", "M"}, {".:|", "N"}, {"|:.", "O"}, {":|.", "P"},
         {":.|", "Q"}, {"|..", "R"}, {".|.", "S"}, {"..|", "T"},
         {".||", "U"}, {"|.|", "V"}, {"||.", "W"}, {"-.-", "X"}, 
-        {".--", "Y"}, {"--.", "Z"}, {"---", " "}, {"~", "~"}, {" ", " "},
+        {".--", "Y"}, {"--.", "Z"}, {"---", " "}, {"~", "~"},{" ", " "}
     };
 
   for (const auto& entrada : entradas) {
@@ -622,28 +600,25 @@ int main() {
   }
 
   while (getline(cin, line) && line != "~") {
-    if (line.find_first_not_of(" \t\r\n") == std::string::npos || line.empty() || line.empty()) {
+    if (line.find_first_not_of(" \t\r\n") == std::string::npos || line.empty()) {
       codeList.insertBack("FIM DE FUNCAO");
-    }
-    else {
+    } else {
       codeList.insertBack(line);
     }
-
   }
 
-  List<string> codeAzuri = traduzirIanteco(dict, codeList);
+  List<string> codigoIantecoTraduzido;
 
-  // Print da traducao pra entender bugs
-  cout << "\n=== CODIGO TRADUZIDO ===\n";
-  ListNavigator<string> nav = codeAzuri.getListNavigator();
-  string translatedLine;
-  while (nav.getCurrentItem(translatedLine)) {
-    cout << translatedLine << endl;
-    nav.next();
-  }
-  cout << "=======================\n\n";
+  codigoIantecoTraduzido = traduzirIantecoV2(dict, codeList);
+  ExecutorAzuri(codigoIantecoTraduzido);
 
-  ExecutorAzuri(codeAzuri);
+  /*
+
+          |\__/,|   (`\
+        _.|o o  |_   ) )
+      -(((---(((--------
+
+  */
 
   return 0;
     

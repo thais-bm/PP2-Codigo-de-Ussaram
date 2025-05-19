@@ -540,75 +540,60 @@ List<string> traduzirIanteco(HashTable<string>& dict, List<string>& iantecoLines
         nav.getCurrentItem(linha);
         linha = trim(linha);
 
-        if (linha.empty() || linha == "FIM DE FUNCAO") {
+        if (linha.empty() || linha == "~") {
             codigoAzuri.insertBack("FIM DE FUNCAO");
             nav.next();
             continue;
         }
 
-        if (linha.back() == ':' && linha.find("------:") == string::npos) {
-            string nomeFunc = linha.substr(0, linha.length() - 1); // Remove ':'
-            string funcTraduzido = "";
-
-            string simbolo = "";
-            for (char c : nomeFunc) {
-                if (c == ':') {
-                    if (!simbolo.empty()) {
-                        funcTraduzido += dict.search(simbolo);
-                        simbolo = "";
-                    }
-                } else {
-                    simbolo += c;
+        // Caso 1: Definicao de funcao (ex: :.:---:)
+        if (linha.back() == ':' && linha.find("------") == string::npos) {
+            string nomeFunc = "";
+            for (size_t i = 0; i + 2 < linha.length(); i += 3) {
+                string simbolo = linha.substr(i, 3);
+                string traduzido = dict.search(simbolo);
+                if (!traduzido.empty() && traduzido != " ") {
+                    nomeFunc += traduzido;
                 }
             }
-            if (!simbolo.empty()) {
-                funcTraduzido += dict.search(simbolo);
+            // Remove o ':' final se existir
+            if (!nomeFunc.empty() && nomeFunc.back() == ':') {
+                nomeFunc.pop_back();
             }
-
-            codigoAzuri.insertBack(funcTraduzido + " :");
+            codigoAzuri.insertBack(nomeFunc + " :");
         }
-
+        // Caso 2: Linha de comando (ex: ------:...:|.:)
         else if (linha.find("------:") == 0) {
             string conteudo = linha.substr(7);
-            string traducao = "";
-
-            string simbolo = "";
-            for (char c : conteudo) {
-                if (c == ':') {
-                    if (!simbolo.empty()) {
-                        traducao += dict.search(simbolo);
-                        simbolo = "";
-                    }
-                } else {
-                    simbolo += c;
+            string parametro = "";
+            
+            for (size_t i = 0; i + 2 < conteudo.length(); i += 3) {
+                string simbolo = conteudo.substr(i, 3);
+                string traduzido = dict.search(simbolo);
+                if (!traduzido.empty() && traduzido != " ") {
+                    parametro += traduzido;
                 }
             }
-            if (!simbolo.empty()) {
-                traducao += dict.search(simbolo);
+            
+            if (parametro.empty()) {
+                codigoAzuri.insertBack("DESENFILEIRA");
+            } else {
+                codigoAzuri.insertBack("ENFILEIRA " + parametro);
             }
-
-            codigoAzuri.insertBack("ENFILEIRA " + traducao);
         }
-
+        // Caso 3: Chamada de funcao (ex: :.:)
         else {
             string chamada = "";
-
-            string simbolo = "";
-            for (char c : linha) {
-                if (c == ':') {
-                    if (!simbolo.empty()) {
-                        chamada += dict.search(simbolo);
-                        simbolo = "";
-                    }
-                } else {
-                    simbolo += c;
+            for (size_t i = 0; i + 2 < linha.length(); i += 3) {
+                string simbolo = linha.substr(i, 3);
+                string traduzido = dict.search(simbolo);
+                if (!traduzido.empty() && traduzido != " ") {
+                    chamada += traduzido;
                 }
             }
-            if (!simbolo.empty()) {
-                chamada += dict.search(simbolo);
+            if (!chamada.empty()) {
+                codigoAzuri.insertBack(chamada);
             }
-
-            codigoAzuri.insertBack(chamada);
         }
 
         nav.next();
@@ -616,8 +601,6 @@ List<string> traduzirIanteco(HashTable<string>& dict, List<string>& iantecoLines
 
     return codigoAzuri;
 }
-
-
 
 int main() {
   HashTable<string> dict(11);
@@ -631,7 +614,7 @@ int main() {
         {".|:", "M"}, {".:|", "N"}, {"|:.", "O"}, {":|.", "P"},
         {":.|", "Q"}, {"|..", "R"}, {".|.", "S"}, {"..|", "T"},
         {".||", "U"}, {"|.|", "V"}, {"||.", "W"}, {"-.-", "X"}, 
-        {".--", "Y"}, {"--.", "Z"}, {"---", "branco"}, {"", ""}, 
+        {".--", "Y"}, {"--.", "Z"}, {"---", " "}, {"~", "~"}, {" ", " "},
     };
 
   for (const auto& entrada : entradas) {
@@ -650,65 +633,18 @@ int main() {
 
   List<string> codeAzuri = traduzirIanteco(dict, codeList);
 
-  // Problemas do codigo:
-
-  // while (!codeList.empty()) {
-  //   cout << codeList.getItemFront() << endl;
-  //   codeList.removeFront();
-  // }
+  // Print da traducao pra entender bugs
+  cout << "\n=== CODIGO TRADUZIDO ===\n";
+  ListNavigator<string> nav = codeAzuri.getListNavigator();
+  string translatedLine;
+  while (nav.getCurrentItem(translatedLine)) {
+    cout << translatedLine << endl;
+    nav.next();
+  }
+  cout << "=======================\n\n";
 
   ExecutorAzuri(codeAzuri);
 
   return 0;
-
-  /*
-          /| _ ╱|、
-         ( •̀ㅅ •́  )
-       ＿ノ ヽ ノ＼＿
-      /　`/ ⌒Ｙ⌒ Ｙ　 \
-     ( 　(三ヽ人　 /　 　|
-    |　ﾉ⌒＼ ￣￣ヽ　 ノ
-    ヽ＿＿＿＞､＿＿／
-          ｜( 王 ﾉ〈
-         /ﾐ`ー―彡\
-        |       ╯|
-        |   /\   |
-        |  /  \  |
-        | /    \ |
-
-  */
     
 }
-
-/*
-Codigo de teste traduzido
-
-C :
-ENFILEIRA T
-ENFILEIRA A
-ENFILEIRA Q
-
-A :
-ENFILEIRA A
-C
-DESENFILEIRA
-DESENFILEIRA
-ENFILEIRA U
-
-B :
-ENFILEIRA A
-ENFILEIRA T
-DESENFILEIRA
-A
-
-Z :
-ENFILEIRA X
-ENFILEIRA Q
-B
-ENFILEIRA E
-DESENFILEIRA
-
-~
-
-OUTPUT: ATAQUE
-*/

@@ -351,7 +351,6 @@ void ExecutorAzuri(List<string> codeList) {
       Zmain.returnPosition = -1; // não tem retorno
       functionStack.push(Zmain);
 
-      std::cout << "Funcao principal encontrada: " << line << endl;
       break;
     }
     nav.next();
@@ -365,7 +364,6 @@ void ExecutorAzuri(List<string> codeList) {
     } else {
       nav.seekToPosition(functionStack.top().position); // Navega para a posição da função
     }
-    std::cout << "Executando funcao: " << functionStack.top().functionName << endl;
 
     while (!nav.end()) {
       nav.getCurrentItem(line);
@@ -375,7 +373,6 @@ void ExecutorAzuri(List<string> codeList) {
       if (line.find("DESENFILEIRA") != string::npos) {
         if (!msg.empty()) {
           msg.dequeue();
-          std::cout << "Desenfileirando" << endl;
         }
       }
       else if (line.find("ENFILEIRA") != string::npos) {
@@ -423,11 +420,6 @@ void ExecutorAzuri(List<string> codeList) {
           search.next();
         }
 
-        std::cout << "Chamando funcao: " << newContext.functionName << endl;
-        std::cout << "Retornando para: " << newContext.returnPosition << endl;
-        std::cout << "Posicao da funcao chamada: " << newContext.position << endl;
-
-        functionStack.push(newContext); // Empilha a nova função
         break; // Pausa execução atual para tratar nova função
       }
 
@@ -502,8 +494,6 @@ public:
         delete[] tabela;
     }
 
-
-    template<typename T>
     void HashTable<T>::insert(const std::string& chave, const DictEntry& entrada) {
         size_t indice = hash(chave, tamanho);
         DictEntry* novo = new DictEntry(entrada.ianteco, entrada.azuri);
@@ -534,7 +524,7 @@ public:
 
 
 int main() {
-  HashTable dict(11);
+  HashTable<string> dict(11);
   List<string> codeList;
   string line;
 
@@ -549,7 +539,7 @@ int main() {
     };
 
   while (getline(cin, line) && line != "~") {
-    if (line.find_first_not_of(" \t\r\n") == std::string::npos || line.empty() || line.empty()) {
+    if (line.find_first_not_of("\t\r\n") == std::string::npos || line.empty()) {
       codeList.insertBack("FIM DE FUNCAO");
     }
     else {

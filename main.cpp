@@ -321,7 +321,7 @@ void printMsg(Queue<string> msg) {
 struct FunctionContext {
   string functionName; // Nome da funcao
   int position; // Onde a funcao comeca
-  int returnPosition; // Onde retornar após chamada de função
+  int returnPosition; // Onde retornar apos chamada de funcao
 };
 
 void ExecutorAzuri(List<string> codeList) {
@@ -347,8 +347,8 @@ void ExecutorAzuri(List<string> codeList) {
 
       FunctionContext Zmain;
       Zmain.functionName = line;
-      Zmain.position = nav.getCurrentPosition() + 1; // posição da função no CodeList
-      Zmain.returnPosition = -1; // não tem retorno
+      Zmain.position = nav.getCurrentPosition() + 1; // posicao da funcao no CodeList
+      Zmain.returnPosition = -1; // nao tem retorno
       functionStack.push(Zmain);
 
       std::cout << "Funcao principal encontrada: " << line << endl;
@@ -357,13 +357,13 @@ void ExecutorAzuri(List<string> codeList) {
     nav.next();
   }
 
-  // Passo 2: Executar as funções empilhadas
+  // Passo 2: Executar as funcoes empilhadas
   while (!functionStack.empty()) {
     if (shouldReturn) {
-      nav.seekToPosition(pendingReturn); // Volta para a linha após chamada
+      nav.seekToPosition(pendingReturn); // Volta para a linha apos chamada
       shouldReturn = false;
     } else {
-      nav.seekToPosition(functionStack.top().position); // Navega para a posição da função
+      nav.seekToPosition(functionStack.top().position); // Navega para a posicao da funcao
     }
     std::cout << "Executando funcao: " << functionStack.top().functionName << endl;
 
@@ -384,12 +384,12 @@ void ExecutorAzuri(List<string> codeList) {
         std::cout << "Enfileirando: " << content << endl;
       }
 
-      // Fim da função
+      // Fim da funcao
       if (isEndFunction(line)) {
         if (functionStack.top().returnPosition != -1) {
-          pendingReturn = functionStack.top().returnPosition; // Volta para a linha após chamada
+          pendingReturn = functionStack.top().returnPosition; // Volta para a linha apos chamada
           shouldReturn = true; // Indica que deve retornar
-          functionStack.pop(); // Remove a função atual da pilha
+          functionStack.pop(); // Remove a funcao atual da pilha
           break;
 
         } else {
@@ -398,13 +398,13 @@ void ExecutorAzuri(List<string> codeList) {
         }
       }
 
-      // Chamada de outra função
+      // Chamada de outra funcao
       if (isIantecoFunctionCall(line)) {
         FunctionContext newContext;
         newContext.functionName = trim(line);
         newContext.returnPosition = nav.getCurrentPosition() + 1;
 
-        // Buscar posição da função chamada
+        // Buscar posicao da funcao chamada
         ListNavigator<string> search = codeList.getListNavigator();
         string searchLine;
 
@@ -427,8 +427,8 @@ void ExecutorAzuri(List<string> codeList) {
         std::cout << "Retornando para: " << newContext.returnPosition << endl;
         std::cout << "Posicao da funcao chamada: " << newContext.position << endl;
 
-        functionStack.push(newContext); // Empilha a nova função
-        break; // Pausa execução atual para tratar nova função
+        functionStack.push(newContext); // Empilha a nova funcao
+        break; // Pausa execucao atual para tratar nova funcao
       }
 
       nav.next();
@@ -463,22 +463,22 @@ private:
 
     // Funcao Hash //
     size_t hash(const std::string& key, size_t m) {
-    size_t valor_hash = 0;
-    size_t n = key.length();
+      size_t valor_hash = 0;
+      size_t n = key.length();
 
-    for (size_t i = 0; i < n; ++i) {
-        size_t potencia = 1;
+      for (size_t i = 0; i < n; ++i) {
+          size_t potencia = 1;
 
-        for (size_t j = 0; j < n - i - 1; ++j) {
-            potencia *= 128;
-        }
+          for (size_t j = 0; j < n - i - 1; ++j) {
+              potencia *= 128;
+          }
 
-        valor_hash += key[i] * potencia;
-        valor_hash %= m;
-    }
+          valor_hash += key[i] * potencia;
+          valor_hash %= m;
+      }
 
-    return valor_hash;
-}
+      return valor_hash;
+  }
 
 
 public:
@@ -502,9 +502,7 @@ public:
         delete[] tabela;
     }
 
-
-    template<typename T>
-    void HashTable<T>::insert(const std::string& chave, const DictEntry& entrada) {
+    void insert(const std::string& chave, const DictEntry& entrada) {
         size_t indice = hash(chave, tamanho);
         DictEntry* novo = new DictEntry(entrada.ianteco, entrada.azuri);
         novo->proximo = tabela[indice];
@@ -521,20 +519,108 @@ public:
         return ""; // nao encontrado
     }
 
-    bool HashTable::empty() const {
-    for (int i = 0; i < 11; ++i) {
-        if (tabela[i] != nullptr) {
-            return false;
-        }
-    }
-    return true;
-}
+    bool empty() const {
+      for (int i = 0; i < 11; ++i) {
+          if (tabela[i] != nullptr) {
+              return false;
+          }
+      }
+      return true;
+  }
 };
+
+// Tradutor de Ianteco-Azuri
+
+List<string> traduzirIanteco(HashTable<string>& dict, List<string>& iantecoLines) {
+    ListNavigator<string> nav = iantecoLines.getListNavigator();
+    List<string> codigoAzuri;
+    string linha;
+
+    while (!nav.end()) {
+        nav.getCurrentItem(linha);
+        linha = trim(linha);
+
+        if (linha.empty() || linha == "FIM DE FUNCAO") {
+            codigoAzuri.insertBack("FIM DE FUNCAO");
+            nav.next();
+            continue;
+        }
+
+        if (linha.back() == ':' && linha.find("------:") == string::npos) {
+            string nomeFunc = linha.substr(0, linha.length() - 1); // Remove ':'
+            string funcTraduzido = "";
+
+            string simbolo = "";
+            for (char c : nomeFunc) {
+                if (c == ':') {
+                    if (!simbolo.empty()) {
+                        funcTraduzido += dict.search(simbolo);
+                        simbolo = "";
+                    }
+                } else {
+                    simbolo += c;
+                }
+            }
+            if (!simbolo.empty()) {
+                funcTraduzido += dict.search(simbolo);
+            }
+
+            codigoAzuri.insertBack(funcTraduzido + " :");
+        }
+
+        else if (linha.find("------:") == 0) {
+            string conteudo = linha.substr(7);
+            string traducao = "";
+
+            string simbolo = "";
+            for (char c : conteudo) {
+                if (c == ':') {
+                    if (!simbolo.empty()) {
+                        traducao += dict.search(simbolo);
+                        simbolo = "";
+                    }
+                } else {
+                    simbolo += c;
+                }
+            }
+            if (!simbolo.empty()) {
+                traducao += dict.search(simbolo);
+            }
+
+            codigoAzuri.insertBack("ENFILEIRA " + traducao);
+        }
+
+        else {
+            string chamada = "";
+
+            string simbolo = "";
+            for (char c : linha) {
+                if (c == ':') {
+                    if (!simbolo.empty()) {
+                        chamada += dict.search(simbolo);
+                        simbolo = "";
+                    }
+                } else {
+                    simbolo += c;
+                }
+            }
+            if (!simbolo.empty()) {
+                chamada += dict.search(simbolo);
+            }
+
+            codigoAzuri.insertBack(chamada);
+        }
+
+        nav.next();
+    }
+
+    return codigoAzuri;
+}
 
 
 
 int main() {
-  HashTable dict(11);
+  HashTable<string> dict(11);
   List<string> codeList;
   string line;
 
@@ -548,6 +634,10 @@ int main() {
         {".--", "Y"}, {"--.", "Z"}, {"---", "branco"}, {"", ""}, 
     };
 
+  for (const auto& entrada : entradas) {
+    dict.insert(entrada.ianteco, entrada);
+  }
+
   while (getline(cin, line) && line != "~") {
     if (line.find_first_not_of(" \t\r\n") == std::string::npos || line.empty() || line.empty()) {
       codeList.insertBack("FIM DE FUNCAO");
@@ -558,6 +648,8 @@ int main() {
 
   }
 
+  List<string> codeAzuri = traduzirIanteco(dict, codeList);
+
   // Problemas do codigo:
 
   // while (!codeList.empty()) {
@@ -565,7 +657,7 @@ int main() {
   //   codeList.removeFront();
   // }
 
-  ExecutorAzuri(codeList);
+  ExecutorAzuri(codeAzuri);
 
   return 0;
 
@@ -585,6 +677,7 @@ int main() {
         | /    \ |
 
   */
+    
 }
 
 /*

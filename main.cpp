@@ -3,6 +3,9 @@
 #include <iostream>
 using namespace std;
 
+// Thais Carolina
+// Arthur Marshall
+
 /////Class Node/////
 template <typename T> class Node {
 private:
